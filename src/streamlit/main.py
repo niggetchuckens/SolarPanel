@@ -88,11 +88,22 @@ i = st.session_state.panel_index
 p = st.session_state.paneles[i]
 
 theta0_res = obtener_optimo(p["latitud"], p["potencia"])
+if "theta0" not in theta0_res:
+    st.error(
+        f"⚠️ **Error de conexión con el Backend API (Flask):** {theta0_res.get('message', 'Servidor no disponible')}.\n\n"
+        "Asegúrate de que la API Flask esté ejecutándose en `http://127.0.0.1:5000` o inicia la aplicación completa usando `./entrypoint.sh` (o `.\\entrypoint.ps1` en Windows)."
+    )
+    st.stop()
+
 theta0 = theta0_res["theta0"]
 phi0 = theta0_res["phi0"]
 E_max = theta0_res["E_max"]
 
 energia_res = obtener_energia(p["theta"], p["phi"], p["potencia"], theta0, phi0)
+if "E" not in energia_res:
+    st.error(f"⚠️ Error al calcular energía: {energia_res.get('message', 'Error desconocido')}")
+    st.stop()
+
 E_actual = energia_res["E"]
 dE_th = energia_res["dE_dtheta"]
 dE_ph = energia_res["dE_dphi"]
