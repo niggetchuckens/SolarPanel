@@ -1,4 +1,8 @@
 import math
+import os
+import subprocess
+import sys
+import time
 from typing import Any, Dict
 
 import requests
@@ -10,6 +14,54 @@ URL_SURFACE = "http://127.0.0.1:5000/api/surface"
 URL_OPTIMAL = "http://127.0.0.1:5000/api/optimal"
 URL_DIRECTIONAL_DERIVATIVE = "http://127.0.0.1:5000/api/directional-derivative"
 URL_HESSIAN = "http://127.0.0.1:5000/api/hessian"
+
+
+def ensure_backend_running() -> bool:
+    try:
+        r = requests.get("http://127.0.0.1:5000/api/health", timeout=0.5)
+        if r.status_code == 200:
+            return True
+    except Exception:
+        pass
+
+    root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    app_path = os.path.join(root_dir, "src", "api", "app.py")
+    if os.path.exists(app_path):
+        try:
+            subprocess.Popen(
+                [sys.executable, app_path],
+                cwd=root_dir,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+            for _ in range(10):
+                time.sleep(0.5)
+                try:
+                    r = requests.get("http://127.0.0.1:5000/api/health", timeout=0.5)
+                    if r.status_code == 200:
+                        return True
+                except Exception:
+                    continue
+        except Exception:
+            pass
+    return False
+
+
+def _safe_post(url: str, json_data: Dict[str, Any], timeout: int = 10) -> Dict[str, Any]:
+    try:
+        response = requests.post(url, json=json_data, timeout=timeout)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        if ensure_backend_running():
+            try:
+                response = requests.post(url, json=json_data, timeout=timeout)
+                response.raise_for_status()
+                return response.json()
+            except requests.exceptions.RequestException as e2:
+                return {"status": "error", "message": str(e2)}
+        return {"status": "error", "message": str(e)}
 
 
 def simular(
@@ -24,21 +76,12 @@ def simular(
         "date": date,
         "power_gen_kw": power_gen_kw,
     }
-
-    try:
-        response = requests.post(URL_SIMULATE, json=datos, timeout=30)
-        response.raise_for_status()
-
-        return response.json()
-
-    except requests.exceptions.RequestException as e:
-        return {"status": "error", "message": str(e)}
+    return _safe_post(URL_SIMULATE, datos, timeout=30)
 
 
 def calcular(
     latitude, longitude, delta_theta, delta_phi, power_gen=1.0
 ) -> Dict[str, Any]:
-
     datos = {
         "latitude": latitude,
         "longitude": longitude,
@@ -46,15 +89,7 @@ def calcular(
         "delta_phi": delta_phi,
         "power_gen": power_gen,
     }
-
-    try:
-        response = requests.post(URL_CALCULATE, json=datos, timeout=10)
-        response.raise_for_status()
-
-        return response.json()
-
-    except requests.exceptions.RequestException as e:
-        return {"status": "error", "message": str(e)}
+    return _safe_post(URL_CALCULATE, datos, timeout=10)
 
 
 def obtener_energia(theta, phi, A, theta0, phi0) -> Dict[str, Any]:
@@ -65,12 +100,7 @@ def obtener_energia(theta, phi, A, theta0, phi0) -> Dict[str, Any]:
         "theta0": theta0,
         "phi0": phi0,
     }
-    try:
-        response = requests.post(URL_ENERGY, json=datos, timeout=10)
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        return {"status": "error", "message": str(e)}
+    return _safe_post(URL_ENERGY, datos, timeout=10)
 
 
 def obtener_superficie(A, theta0, phi0, res=40) -> Dict[str, Any]:
@@ -80,12 +110,7 @@ def obtener_superficie(A, theta0, phi0, res=40) -> Dict[str, Any]:
         "phi0": phi0,
         "res": res,
     }
-    try:
-        response = requests.post(URL_SURFACE, json=datos, timeout=10)
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        return {"status": "error", "message": str(e)}
+    return _safe_post(URL_SURFACE, datos, timeout=10)
 
 
 def obtener_optimo(latitude, power_gen) -> Dict[str, Any]:
@@ -93,12 +118,7 @@ def obtener_optimo(latitude, power_gen) -> Dict[str, Any]:
         "latitude": latitude,
         "power_gen": power_gen,
     }
-    try:
-        response = requests.post(URL_OPTIMAL, json=datos, timeout=10)
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        return {"status": "error", "message": str(e)}
+    return _safe_post(URL_OPTIMAL, datos, timeout=10)
 
 
 def obtener_derivada_direccional(theta, phi, A, theta0, phi0, alpha) -> Dict[str, Any]:
@@ -110,12 +130,8 @@ def obtener_derivada_direccional(theta, phi, A, theta0, phi0, alpha) -> Dict[str
         "phi0": phi0,
         "alpha": alpha,
     }
-    try:
-        response = requests.post(URL_DIRECTIONAL_DERIVATIVE, json=datos, timeout=10)
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        return {"status": "error", "message": str(e)}
+    return _safe_post(URL_DIRECTIONAL_DERIVATIVE, datos, timeout=10)
+
 
 def obtener_hessiano(theta, phi, A, theta0, phi0) -> Dict[str, Any]:
     datos = {
@@ -125,9 +141,4 @@ def obtener_hessiano(theta, phi, A, theta0, phi0) -> Dict[str, Any]:
         "theta0": theta0,
         "phi0": phi0,
     }
-    try:
-        response = requests.post(URL_HESSIAN, json=datos, timeout=30)
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        return {"status": "error", "message": str(e)}
+    return _safe_post(URL_HESSIAN, datos, timeout=30)
