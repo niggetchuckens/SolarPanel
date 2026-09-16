@@ -5,35 +5,39 @@ from datetime import datetime
 
 class OpenMeteoModel:
     @staticmethod
-    def get_historical_solar_data(latitude: float, longitude: float, season: str) -> dict:
+    def get_historical_solar_data(latitude: float, longitude: float, season: str = "summer", date: str = None) -> dict:
         """
-        Consulta la API de Open-Meteo para obtener datos historicos de clima basados en la estacion del ano.
+        Consulta la API de Open-Meteo para obtener datos historicos de clima basados en una fecha especifica o estacion del ano.
         Parametros recibidos:
         - latitude (float): Latitud de la ubicacion.
         - longitude (float): Longitud de la ubicacion.
-        - season (str): Estacion del ano a simular (summer, autumn, winter, spring).
+        - season (str): Estacion del ano a simular (summer, autumn, winter, spring). Se usa como fallback si no se pasa date.
+        - date (str, opcional): Fecha especifica en formato YYYY-MM-DD.
         Parametros retornados:
         - dict: Diccionario con la hora de amanecer, atardecer, multiplicador de eficiencia, radiacion y fecha.
         """
-        season = season.lower()
-        hemisphere = "south" if latitude < 0 else "north"
-        
-        if hemisphere == "south":
-            mapping = {
-                "summer": "2023-12-21",
-                "autumn": "2023-03-21",
-                "winter": "2023-06-21",
-                "spring": "2023-09-23"
-            }
+        if date:
+            target_date = str(date)
         else:
-            mapping = {
-                "summer": "2023-06-21",
-                "autumn": "2023-09-23",
-                "winter": "2023-12-21",
-                "spring": "2023-03-21"
-            }
+            season = (season or "summer").lower()
+            hemisphere = "south" if latitude < 0 else "north"
             
-        target_date = mapping.get(season, "2023-06-21")
+            if hemisphere == "south":
+                mapping = {
+                    "summer": "2023-12-21",
+                    "autumn": "2023-03-21",
+                    "winter": "2023-06-21",
+                    "spring": "2023-09-23"
+                }
+            else:
+                mapping = {
+                    "summer": "2023-06-21",
+                    "autumn": "2023-09-23",
+                    "winter": "2023-12-21",
+                    "spring": "2023-03-21"
+                }
+                
+            target_date = mapping.get(season, "2023-06-21")
         
         url = (
             f"https://archive-api.open-meteo.com/v1/archive"

@@ -13,7 +13,7 @@ URL_HESSIAN = "http://127.0.0.1:5000/api/hessian"
 
 
 def simular(
-    latitude, longitude, width, height, season, power_gen_kw=1.0
+    latitude, longitude, width, height, season="summer", date=None, power_gen_kw=1.0
 ) -> Dict[str, Any]:
     datos = {
         "latitude": latitude,
@@ -21,6 +21,7 @@ def simular(
         "width_m": width,
         "height_m": height,
         "season": season,
+        "date": date,
         "power_gen_kw": power_gen_kw,
     }
 

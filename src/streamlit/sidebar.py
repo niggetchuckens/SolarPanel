@@ -20,7 +20,24 @@ def dialogo_agregar_panel():
         theta = st.slider("θ — Inclinación (°)", 0, 90, 30)
     with col_p:
         phi = st.slider("φ — Orientación (°)", 0, 360, 180)
-    estacion = st.selectbox("Estación", ["summer", "autumn", "winter", "spring"])
+    tipo_fecha = st.radio(
+        "Modalidad temporal",
+        ["Fecha específica", "Estación del año"],
+        horizontal=True,
+    )
+    fecha = None
+    estacion = "summer"
+    if tipo_fecha == "Fecha específica":
+        import datetime
+        fecha_obj = st.date_input(
+            "Seleccionar fecha histórica",
+            value=datetime.date(2023, 12, 21),
+            min_value=datetime.date(1950, 1, 1),
+            max_value=datetime.date.today(),
+        )
+        fecha = str(fecha_obj)
+    else:
+        estacion = st.selectbox("Estación", ["summer", "autumn", "winter", "spring"])
 
     if st.button("Crear panel", use_container_width=True):
         uid = st.session_state.next_uid
@@ -36,6 +53,8 @@ def dialogo_agregar_panel():
                 "potencia": potencia,
                 "theta": theta,
                 "phi": phi,
+                "tipo_fecha": tipo_fecha,
+                "fecha": fecha,
                 "estacion": estacion,
                 "simulacion": None,
             }
@@ -128,21 +147,51 @@ def render_sidebar():
                 "φ — Orientación (°)", 0, 360, int(p["phi"]), 1, key=f"phi_{uid}"
             )
 
-            p["estacion"] = st.selectbox(
-                "Estación",
-                ["summer", "autumn", "winter", "spring"],
-                index=["summer", "autumn", "winter", "spring"].index(p["estacion"]),
-                key=f"season_{uid}",
+            tipo_fecha = st.radio(
+                "Modalidad temporal",
+                ["Fecha específica", "Estación del año"],
+                index=0 if p.get("tipo_fecha") == "Fecha específica" else 1,
+                horizontal=True,
+                key=f"mode_{uid}",
             )
+            p["tipo_fecha"] = tipo_fecha
 
-            if st.button("Simular dia", use_container_width=True, key=f"sim_{uid}"):
+            if tipo_fecha == "Fecha específica":
+                import datetime
+                default_date = datetime.date(2023, 12, 21)
+                if p.get("fecha"):
+                    try:
+                        default_date = datetime.date.fromisoformat(str(p["fecha"]))
+                    except Exception:
+                        pass
+                fecha_sel = st.date_input(
+                    "Fecha histórica",
+                    value=default_date,
+                    min_value=datetime.date(1950, 1, 1),
+                    max_value=datetime.date.today(),
+                    key=f"date_{uid}",
+                )
+                p["fecha"] = str(fecha_sel)
+            else:
+                estacion_val = p.get("estacion", "summer")
+                if estacion_val not in ["summer", "autumn", "winter", "spring"]:
+                    estacion_val = "summer"
+                p["estacion"] = st.selectbox(
+                    "Estación",
+                    ["summer", "autumn", "winter", "spring"],
+                    index=["summer", "autumn", "winter", "spring"].index(estacion_val),
+                    key=f"season_{uid}",
+                )
+
+            if st.button("☀️ Simular dia", use_container_width=True, key=f"sim_{uid}"):
                 with st.spinner("Simulando..."):
                     p["simulacion"] = simular(
                         latitude=p["latitud"],
                         longitude=p["longitud"],
                         width=p["ancho"],
                         height=p["alto"],
-                        season=p["estacion"],
+                        season=p.get("estacion", "summer"),
+                        date=p.get("fecha") if p.get("tipo_fecha") == "Fecha específica" else None,
                         power_gen_kw=p["potencia"],
                     )
 

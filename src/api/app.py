@@ -81,21 +81,22 @@ def simulate():
         return jsonify({"status": "error", "message": "No data provided."}), 400
         
     try:
-        if not all(k in data for k in ('latitude', 'longitude', 'width_m', 'height_m', 'season')):
-            return jsonify({"status": "error", "message": "Missing required parameters in JSON payload."}), 400
+        if not all(k in data for k in ('latitude', 'longitude', 'width_m', 'height_m')):
+            return jsonify({"status": "error", "message": "Missing required parameters (latitude, longitude, width_m, height_m) in JSON payload."}), 400
             
         latitude = float(data['latitude'])
         longitude = float(data['longitude'])
         width_m = float(data['width_m'])
         height_m = float(data['height_m'])
-        season = str(data['season'])
+        season = str(data.get('season', 'summer'))
+        date = data.get('date', None)
         power_gen = float(data.get('power_gen_kw', 1.0))
         shadows = data.get('shadows', [])
     except ValueError:
         return jsonify({"status": "error", "message": "Numeric parameters required for numerical fields."}), 400
 
     try:
-        env_data = OpenMeteoModel.get_historical_solar_data(latitude, longitude, season)
+        env_data = OpenMeteoModel.get_historical_solar_data(latitude, longitude, season=season, date=date)
         sunrise = env_data["sunrise"]
         sunset = env_data["sunset"]
         efficiency = env_data["efficiency"]
@@ -135,6 +136,7 @@ def simulate():
             'location': panel.location_name,
             'environment': {
                 'season': season,
+                'date': env_data['date'],
                 'api_date': env_data['date'],
                 'radiation_mj_m2': env_data['radiation_mj_m2'],
                 'efficiency_multiplier': efficiency,
