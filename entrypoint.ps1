@@ -28,7 +28,7 @@ $venvScripts = if (Test-Path (Join-Path $venvDir "Scripts")) {
 # Verificar si las dependencias ya están disponibles en el entorno actual (ej. contenedor o venv activo)
 $depsAvailable = $false
 try {
-    & $basePython -c "import flask, streamlit" 2>&1 | Out-Null
+    & $basePython -c "import flask, streamlit, folium, streamlit_folium, pysolar" 2>&1 | Out-Null
     if ($LASTEXITCODE -eq 0) {
         $depsAvailable = $true
     }
@@ -69,7 +69,7 @@ $pythonExe = if ($venvScripts -and (Test-Path (Join-Path $venvScripts "python.ex
 # 3. Comprobar e instalar dependencias si faltan
 $hasDeps = $false
 try {
-    & $pythonExe -c "import flask, streamlit" 2>&1 | Out-Null
+    & $pythonExe -c "import flask, streamlit, folium, streamlit_folium, pysolar" 2>&1 | Out-Null
     if ($LASTEXITCODE -eq 0) {
         $hasDeps = $true
     }

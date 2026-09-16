@@ -8,7 +8,7 @@ cd "$(dirname "$0")"
 if [ -d "venv" ] && [ -f "venv/bin/activate" ]; then
   echo "Entorno virtual encontrado. Activando 'venv'..."
   source venv/bin/activate
-elif [ -z "$VIRTUAL_ENV" ] && ! python3 -c "import flask, streamlit" 2>/dev/null && ! python -c "import flask, streamlit" 2>/dev/null; then
+elif [ -z "$VIRTUAL_ENV" ] && ! python3 -c "import flask, streamlit, folium, streamlit_folium, pysolar" 2>/dev/null && ! python -c "import flask, streamlit, folium, streamlit_folium, pysolar" 2>/dev/null; then
   echo "No se encontró entorno virtual ni dependencias necesarias. Creando 'venv'..."
   if command -v python3 >/dev/null 2>&1; then
     python3 -m venv venv
@@ -22,7 +22,7 @@ elif [ -z "$VIRTUAL_ENV" ] && ! python3 -c "import flask, streamlit" 2>/dev/null
 fi
 
 # 2. Verificar e instalar dependencias si faltan
-if ! python -c "import flask, streamlit" 2>/dev/null; then
+if ! python -c "import flask, streamlit, folium, streamlit_folium, pysolar" 2>/dev/null; then
   echo "Instalando dependencias desde requirements.txt..."
   pip install --upgrade pip 2>/dev/null || true
   pip install -r requirements.txt
