@@ -25,6 +25,9 @@ from grapics import (
     draw_3d_simulation,
 )
 from mapa import mapa_paneles
+import importlib
+import sidebar
+importlib.reload(sidebar)
 from sidebar import render_sidebar
 
 import streamlit as st
@@ -546,60 +549,62 @@ with tab_daily:
     st.subheader("Rendimiento Energético a lo Largo del Día (Simulación mediante Sumas de Riemann)")
     st.caption("Calcula y simula la generación de energía total en el transcurso de un día, utilizando aproximaciones de rectángulos (Sumas de Riemann) para integrar la curva de potencia real con sombras.")
 
-    with st.expander("📅 Selección de Fecha y Parámetros Temporales", expanded=(not p.get("simulacion"))):
-        col_m1, col_m2 = st.columns([2, 1])
-        with col_m1:
-            modo_tab = st.radio(
-                "Modalidad de simulación",
-                ["Fecha específica", "Estación del año"],
-                index=0 if p.get("tipo_fecha") == "Fecha específica" else 1,
-                horizontal=True,
-                key=f"tab_daily_mode_{p['uid']}"
+    st.markdown("---")
+    st.markdown("### 📅 Configuración de Fecha a Simular")
+    col_m1, col_m2, col_m3 = st.columns([1.5, 2, 1.2])
+    with col_m1:
+        modo_tab = st.radio(
+            "Seleccionar período por:",
+            ["Fecha específica (Día exacto)", "Estación astronómica"],
+            index=0 if p.get("tipo_fecha") == "Fecha específica" else 1,
+            key=f"tab_daily_mode_{p['uid']}"
+        )
+        p["tipo_fecha"] = "Fecha específica" if "Fecha específica" in modo_tab else "Estación del año"
+    with col_m2:
+        if p["tipo_fecha"] == "Fecha específica":
+            import datetime
+            default_d = datetime.date(2023, 12, 21)
+            if p.get("fecha"):
+                try:
+                    default_d = datetime.date.fromisoformat(str(p["fecha"]))
+                except Exception:
+                    pass
+            fecha_in = st.date_input(
+                "Día del calendario a simular (YYYY-MM-DD):",
+                value=default_d,
+                min_value=datetime.date(1950, 1, 1),
+                max_value=datetime.date.today(),
+                key=f"tab_daily_date_{p['uid']}"
             )
-            p["tipo_fecha"] = modo_tab
-            if modo_tab == "Fecha específica":
-                import datetime
-                default_d = datetime.date(2023, 12, 21)
-                if p.get("fecha"):
-                    try:
-                        default_d = datetime.date.fromisoformat(str(p["fecha"]))
-                    except Exception:
-                        pass
-                fecha_in = st.date_input(
-                    "Fecha histórica a simular (Open-Meteo)",
-                    value=default_d,
-                    min_value=datetime.date(1950, 1, 1),
-                    max_value=datetime.date.today(),
-                    key=f"tab_daily_date_{p['uid']}"
+            p["fecha"] = str(fecha_in)
+        else:
+            est_val = p.get("estacion", "summer")
+            if est_val not in ["summer", "autumn", "winter", "spring"]:
+                est_val = "summer"
+            p["estacion"] = st.selectbox(
+                "Estación del año:",
+                ["summer", "autumn", "winter", "spring"],
+                index=["summer", "autumn", "winter", "spring"].index(est_val),
+                key=f"tab_daily_season_{p['uid']}"
+            )
+    with col_m3:
+        st.write("")
+        st.write("")
+        if st.button("☀️ Simular este día", use_container_width=True, key=f"tab_daily_sim_{p['uid']}"):
+            with st.spinner("Consultando radiación y simulando..."):
+                p["simulacion"] = simular(
+                    latitude=p["latitud"],
+                    longitude=p["longitud"],
+                    width=p["ancho"],
+                    height=p["alto"],
+                    season=p.get("estacion", "summer"),
+                    date=p.get("fecha") if p.get("tipo_fecha") == "Fecha específica" else None,
+                    power_gen_kw=p["potencia"],
                 )
-                p["fecha"] = str(fecha_in)
-            else:
-                est_val = p.get("estacion", "summer")
-                if est_val not in ["summer", "autumn", "winter", "spring"]:
-                    est_val = "summer"
-                p["estacion"] = st.selectbox(
-                    "Estación astronómica",
-                    ["summer", "autumn", "winter", "spring"],
-                    index=["summer", "autumn", "winter", "spring"].index(est_val),
-                    key=f"tab_daily_season_{p['uid']}"
-                )
-        with col_m2:
-            st.write("")
-            st.write("")
-            if st.button("☀️ Simular este día", use_container_width=True, key=f"tab_daily_sim_{p['uid']}"):
-                with st.spinner("Consultando radiación y simulando..."):
-                    p["simulacion"] = simular(
-                        latitude=p["latitud"],
-                        longitude=p["longitud"],
-                        width=p["ancho"],
-                        height=p["alto"],
-                        season=p.get("estacion", "summer"),
-                        date=p.get("fecha") if p.get("tipo_fecha") == "Fecha específica" else None,
-                        power_gen_kw=p["potencia"],
-                    )
-                    from persistencia import guardar_paneles
-                    guardar_paneles(st.session_state.paneles)
-                    st.rerun()
+                from persistencia import guardar_paneles
+                guardar_paneles(st.session_state.paneles)
+                st.rerun()
+    st.markdown("---")
 
     if not p.get("simulacion") or p["simulacion"].get("status") != "success":
         st.info("Selecciona una fecha arriba o en la barra lateral y presiona 'Simular dia'.")
